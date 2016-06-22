@@ -7,9 +7,21 @@
 //
 
 #include <stdio.h>
+#include <stdlib.h>
+#include "hashMap.h"
 
 int main(int argc, const char * argv[]) {
-    // insert code here...
-    printf("Hello, World!\n");
+    
+    t_hashmap* hashmap = hashmap_create(10, 2, 0.7);
+    
+    int var = 8;
+    char* var2 = "ma valeur";
+    
+    hashmap_put(hashmap, "toto", &var, TYPE_INT);
+    hashmap_put(hashmap, "variable", var2, TYPE_STRING);
+    
+    hashmap_print(hashmap);
+    
+    
     return 0;
 }
