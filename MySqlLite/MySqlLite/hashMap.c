@@ -29,7 +29,7 @@ t_hashmap* hashmap_create(int slots, float grow_factor, float load_factor) {
     
     t_hashmap* hashmap = malloc(sizeof(t_hashmap));
     
-    hashmap->entries = malloc(sizeof(t_hashmapEntry*)*slots);
+    hashmap->entries = malloc(sizeof(t_hashmap_entry*)*slots);
     for(int i=0; i<slots; i++) {
         hashmap->entries[i] = NULL;
     }
@@ -44,9 +44,9 @@ t_hashmap* hashmap_create(int slots, float grow_factor, float load_factor) {
 /*
  * Return an entry to insert in the hashmap
  */
-t_hashmapEntry* hashmap_create_entry(char* key, void* value, type_var type) {
+t_hashmap_entry* hashmap_create_entry(char* key, void* value, type_var type) {
     
-    t_hashmapEntry* entry = malloc(sizeof(t_hashmapEntry));
+    t_hashmap_entry* entry = malloc(sizeof(t_hashmap_entry));
     entry->key = key;
     entry->value = value;
     entry->type = type;
@@ -62,17 +62,17 @@ void hashmap_resize(t_hashmap* hashmap) {
     
     int i;
     int lastNbSlots = hashmap->slots;
-    t_hashmapEntry** lastEntries = hashmap->entries;
+    t_hashmap_entry** lastEntries = hashmap->entries;
     
     hashmap->size = 0;
     hashmap->slots = lastNbSlots * hashmap->grow_factor;
-    hashmap->entries = malloc(sizeof(t_hashmapEntry*) * hashmap->slots);
+    hashmap->entries = malloc(sizeof(t_hashmap_entry*) * hashmap->slots);
     for(int i=0; i<hashmap->slots; i++) {
         hashmap->entries[i] = NULL;
     }
     
-    t_hashmapEntry* entry;
-    t_hashmapEntry* toDelete;
+    t_hashmap_entry* entry;
+    t_hashmap_entry* toDelete;
     
     for(i=0; i<lastNbSlots; i++) {
         entry = lastEntries[i];
@@ -94,7 +94,7 @@ void hashmap_put(t_hashmap* hashmap, char* key, void* value, type_var type) {
     
     if(hashmap) {
         int numSlot = getHashCode(key) % hashmap->slots;
-        t_hashmapEntry** entry = &(hashmap->entries[numSlot]);
+        t_hashmap_entry** entry = &(hashmap->entries[numSlot]);
         
         // If the key already exists, update its value
         if(hashmap_get(hashmap, key)) {
@@ -131,7 +131,7 @@ void* hashmap_get(t_hashmap* hashmap, char* key) {
     
     if(hashmap) {
         int numSlot = getHashCode(key)%hashmap->slots;
-        t_hashmapEntry** entry = &(hashmap->entries[numSlot]);
+        t_hashmap_entry** entry = &(hashmap->entries[numSlot]);
         
         while(*entry) {
             // Return the matching key
@@ -151,12 +151,12 @@ void hashmap_remove(t_hashmap* hashmap, char* key) {
     
     if(hashmap) {
         int numSlot = getHashCode(key)%hashmap->slots;
-        t_hashmapEntry** entry = &(hashmap->entries[numSlot]);
+        t_hashmap_entry** entry = &(hashmap->entries[numSlot]);
         
         while(*entry) {
             // Remove the current element if it is the good one
             if(strcmp((*entry)->key, key) == 0) {
-                t_hashmapEntry* toDelete = *entry;
+                t_hashmap_entry* toDelete = *entry;
                 *entry = (*entry)->next;
                 free(toDelete);
                 hashmap->size--;
@@ -170,7 +170,7 @@ void hashmap_remove(t_hashmap* hashmap, char* key) {
 /**
  * Print a hashmap entry
  */
-void print_entry(t_hashmapEntry* entry) {
+void print_entry(t_hashmap_entry* entry) {
     
     switch(entry->type) {
         case TYPE_STRING:
@@ -199,7 +199,7 @@ void hashmap_print(t_hashmap* hashmap) {
         if(hashmap->entries[i] == NULL) {
             printf("NULL");
         } else {
-            t_hashmapEntry* temp = hashmap->entries[i];
+            t_hashmap_entry* temp = hashmap->entries[i];
             while(temp != NULL) {
                 print_entry(temp);
                 temp = temp->next;
@@ -215,4 +215,20 @@ void printIntResult(char* key, void* result) {
     
     printf("'%s' value : ", key);
     (result != NULL) ? printf("%d\n", *((int*) result)) : printf("NULL\n");
+}
+
+void hashmap_free(t_hashmap** hashmap) {
+    
+    for(int i=0; i<(*hashmap)->slots; i++) {
+        if((*hashmap)->entries[i] != NULL) {
+            t_hashmap_entry* temp = (*hashmap)->entries[i];
+            t_hashmap_entry* toDelete = NULL;
+            while(temp != NULL) {
+                toDelete = temp;
+                temp = temp->next;
+                free(toDelete);
+            }
+        }
+    }
+    free(*hashmap);
 }

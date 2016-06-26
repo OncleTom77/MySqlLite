@@ -11,9 +11,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "hashMap.h"
 
+t_hashmap_entry* get_hashmap_entry_from_JSON(char*);
 t_hashmap* JSON_parse(char*);
+
+char* get_string_from_hashmap_entry(t_hashmap_entry*);
 char* JSON_stringify(t_hashmap*);
 
 #endif /* sql_h */
