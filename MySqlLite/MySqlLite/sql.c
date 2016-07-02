@@ -40,7 +40,7 @@ t_hashmap_entry *get_hashmap_entry_from_JSON(char *string) {
 }
 
 /*
- * Transform {nom:'toto',prenom:'youyou',age:18} in hashmap with t_hashmapEntry for each key/value
+ * Transform a JSON string (e.g., {nom:'toto',prenom:'youyou',age:18}) in hashmap with a t_hashmapEntry for each key/value
  */
 t_hashmap *JSON_parse(char *string) {
     
@@ -93,6 +93,9 @@ char *get_string_from_hashmap_entry(t_hashmap_entry *entry) {
     return string;
 }
 
+/*
+ * Transform hashmap in a JSON string (e.g, {nom:'toto',prenom:'youyou',age:18})
+ */
 char *JSON_stringify(t_hashmap *hashmap) {
     
     char *string = NULL;
