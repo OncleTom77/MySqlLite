@@ -9,10 +9,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "sql.h"
+#include "command.h"
 
 int main(int argc, char *argv[]) {
     
-    t_hashmap* hashmap = hashmap_create(10, 2, 0.7);
+    /*t_hashmap* hashmap = hashmap_create(10, 2, 0.7);
     
     int var = 8;
     char* var2 = "ma valeur";
@@ -37,7 +38,15 @@ int main(int argc, char *argv[]) {
     hashmap_print(myHashmap);
     
     hashmap_free(&hashmap);
-    hashmap_free(&myHashmap);
+    hashmap_free(&myHashmap);*/
+    
+    command_line* input;
+    input = analyse_arguments(argc, argv);
+    
+    if(input != NULL) {
+        printf("Parse good !\n");
+        free(input);
+    }
     
     return 0;
 }
