@@ -26,4 +26,7 @@ int sql_insert(command_line *);
 int sql_set(command_line *);
 int sql_remove(command_line *);
 
+void list_chain_append(t_hashmap_entry **, t_hashmap_entry *);
+void list_chain_free(t_hashmap_entry *);
+
 #endif /* sql_h */

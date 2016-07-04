@@ -9,7 +9,7 @@
 
 #include "sql.h"
 
-#define BASE_NO_SQL = "./BaseNoSql";
+#define BASE_NO_SQL "./BaseNoSql"
 
 /*
  * Transform nom:'toto' or age:18 in hashmapEntry
@@ -67,6 +67,33 @@ t_hashmap *JSON_parse(char *string) {
     }
     
     return hashmap;
+}
+
+/*
+ * Get a chained list of t_hashmap_entry from JSON string
+ */
+t_hashmap_entry *JSON_parse_list(char *string) {
+    
+    t_hashmap_entry *list = NULL;
+    t_hashmap_entry *entry = NULL;
+    
+    if(string == NULL || strlen(string) < 3) {
+        return NULL;
+    }
+    
+    if(string[0] == '{' && string[strlen(string) - 1] == '}') {
+        char *element;
+        char *copy = strdup(&string[1]);
+        copy[strlen(copy) - 1] = '\0';
+        while((element = strsep(&copy, ","))) {
+            entry = get_hashmap_entry_from_JSON(element);
+            list_chain_append(&list, entry);
+        }
+    } else {
+        printf("Parse error...");
+    }
+    
+    return list;
 }
 
 /*
@@ -182,37 +209,30 @@ int is_matching(t_hashmap *entity, t_hashmap *constraints) {
 /*
  * Print the entity's values informed in projections
  */
-void print_entity_projections(t_hashmap *entity, t_hashmap *projections) {
+void print_entity_projections(t_hashmap *entity, t_hashmap_entry *projections) {
     
-    int i;
     t_hashmap_entry *entry;
-    t_hashmap_entry *temp;
     
     // For each projection, print the value of entity fields
-    for(i=0; i<projections->slots; i++) {
-        if(projections->entries[i] != NULL) {
-            temp = projections->entries[i];
-            while(temp != NULL) {
-                if((entry = hashmap_get_entry(entity, temp->key)) == NULL) {
-                    return;
-                }
-                switch(entry->type) {
-                    case TYPE_STRING:
-                        printf("%s\t", (char *) entry->value);
-                        break;
-                    case TYPE_INT:
-                        printf("%d\t", *((int *) entry->value));
-                        break;
-                    case TYPE_DOUBLE:
-                        printf("%lf\t", *((double *) entry->value));
-                        break;
-                    default:
-                        printf("unknown\t");
-                }
-                
-                temp = temp->next;
-            }
+    while(projections != NULL) {
+        if((entry = hashmap_get_entry(entity, projections->key)) == NULL) {
+            return;
         }
+        switch(entry->type) {
+            case TYPE_STRING:
+                printf("%s\t", (char *) entry->value);
+                break;
+            case TYPE_INT:
+                printf("%d\t", *((int *) entry->value));
+                break;
+            case TYPE_DOUBLE:
+                printf("%lf\t", *((double *) entry->value));
+                break;
+            default:
+                printf("unknown\t");
+        }
+        
+        projections = projections->next;
     }
 }
 
@@ -221,13 +241,18 @@ void print_entity_projections(t_hashmap *entity, t_hashmap *projections) {
  */
 int sql_find(command_line *input) {
     
-    FILE *file = fopen(input->collection, "r");
+    FILE *file = NULL;
     t_hashmap *entity;
     t_hashmap *constraints;
-    t_hashmap *projections;
+    t_hashmap_entry *projections;
+    char *path = malloc(sizeof(char)*(strlen(input->collection)+20));
+    sprintf(path, "%s/%s.txt", BASE_NO_SQL, input->collection);
     
+    file = fopen(path, "r");
     if(file == NULL) {
         printf("The '%s' collection does not exist.\n", input->collection);
+        printf("The '%s' path have not could be resloved\n", path);
+        free(path);
         return -1;
     }
     
@@ -235,7 +260,8 @@ int sql_find(command_line *input) {
     
     entity = malloc(sizeof(t_hashmap));
     constraints = JSON_parse(input->action_value);
-    projections = JSON_parse(input->projection_value);
+    // Create a chain list of t_hashmap_entry instead of t_hashmap because we need to keep the order of the projections for printing
+    projections = JSON_parse_list(input->projection_value);
     
     // Get each entity in the file
     while(fread(entity, sizeof(t_hashmap), 1, file) == 1) {
@@ -249,15 +275,16 @@ int sql_find(command_line *input) {
             }
             printf("\n");
         }
-        
     }
     
+    free(path);
     free(entity);
+    
     if(constraints != NULL) {
         hashmap_free(&constraints);
     }
     if(projections != NULL) {
-        hashmap_free(&projections);
+        list_chain_free(projections);
     }
     
     fclose(file);
@@ -268,6 +295,32 @@ int sql_find(command_line *input) {
  * Insert a sql entity in an existing collection or create one for this entity
  */
 int sql_insert(command_line *input) {
+    
+    FILE *file = NULL;
+    t_hashmap *entity = NULL;
+    char *path = malloc(sizeof(char)*(strlen(input->collection)+20));
+    sprintf(path, "%s/%s.txt", BASE_NO_SQL, input->collection);
+    
+    file = fopen(path, "r+");
+    if(file == NULL) {
+        file = fopen(input->collection, "w");
+    }
+    
+    entity = JSON_parse(input->action_value);
+    if(entity == NULL) {
+        printf("Syntax error in the data to insert.\n");
+        free(path);
+        fclose(file);
+        return -1;
+    }
+    
+    if(fwrite(entity, sizeof(t_hashmap), 1, file) != 1) {
+        printf("An error occurred during the writing of the data.\n");
+    }
+    
+    free(entity);
+    free(path);
+    fclose(file);
     
     return 0;
 }
@@ -288,3 +341,32 @@ int sql_remove(command_line *input) {
     return 0;
 }
 
+
+
+
+
+/*
+ * Append an element to the chained list pointed to list
+ */
+void list_chain_append(t_hashmap_entry **list, t_hashmap_entry *entry) {
+    
+    while(*list != NULL) {
+        list = &(*list)->next;
+    }
+    
+    *list = entry;
+}
+
+/*
+ * Free the memory allocated by the chained list
+ */
+void list_chain_free(t_hashmap_entry *list) {
+    
+    t_hashmap_entry *toDelete;
+    
+    while(list != NULL) {
+        toDelete = list;
+        list = list->next;
+        free(toDelete);
+    }
+}
