@@ -73,7 +73,7 @@ int get_option(command_line *command_line, char *name, char *value) {
 
 char *get_value(char *value, unsigned long length) {
     
-    char* parsed_value = NULL;
+    char *parsed_value = NULL;
     
     if(length > 2 && value[0] == '"' && value[length - 1] == '"') {
         parsed_value = malloc(sizeof(char)*length-1);

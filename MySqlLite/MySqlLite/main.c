@@ -40,41 +40,40 @@ int main(int argc, char *argv[]) {
     hashmap_free(&hashmap);
     hashmap_free(&myHashmap);*/
     
-    int result = 0;
+    //int result = 0;
     command_line* input;
     input = analyse_arguments(argc, argv);
     
     if(input == NULL) {
         return -1;
     }
-    printf("Parse good !\n");
     
     switch (input->act) {
         case A_FIND:
-            result = sql_find(input);
+            sql_find(input);
             break;
             
         case A_INSERT:
-            result = sql_insert(input);
+            sql_insert(input);
             break;
             
         case A_SET:
-            result = sql_set(input);
+            sql_set(input);
             break;
             
         case A_REMOVE:
-            result = sql_remove(input);
+            sql_remove(input);
             break;
             
         default:
             printf("Unknown action !\n");
     }
-    
+    /*
     if(result == 0) {
         printf("Operation successfuly done.\n");
     } else {
         printf("An error occurred while trying to achieve the operation.\n");
-    }
+    }*/
     
     free(input);
     
