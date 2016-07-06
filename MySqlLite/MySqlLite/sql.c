@@ -19,23 +19,28 @@ t_hashmap_entry *get_hashmap_entry_from_JSON(char *string) {
     t_hashmap_entry *entry = NULL;
     
     if(strstr(string, ":")) {
-        char *key = strsep(&string, ":");
+        char *key;
+        key = strsep(&string, ":");
+        
         if(string[0] == '\'') {
             string++;
             string[strlen(string)-1] = '\0';
-            char *value = strdup(string);
+            char *value;
+            value = strdup(string);
             entry = hashmap_create_entry(key, value, TYPE_STRING);
         } else if(strchr(string, '.')) {
-            double *value = malloc(sizeof(double));
+            double *value;
+            value = malloc(sizeof(double));
             *value = strtod(string, NULL);
             entry = hashmap_create_entry(key, value, TYPE_DOUBLE);
         } else {
-            int *value = malloc(sizeof(int));
+            int *value;
+            value = malloc(sizeof(int));
             *value = atoi(string);
             entry = hashmap_create_entry(key, value, TYPE_INT);
         }
     } else {
-        printf("Parse error...");
+        printf("Parse error...\n");
     }
     
     return entry;
@@ -48,6 +53,8 @@ t_hashmap *JSON_parse(char *string) {
     
     t_hashmap *hashmap = NULL;
     t_hashmap_entry *entry = NULL;
+    char *element;
+    char *copy;
     
     if(string == NULL || strlen(string) < 3) {
         return NULL;
@@ -55,15 +62,14 @@ t_hashmap *JSON_parse(char *string) {
     
     if(string[0] == '{' && string[strlen(string) - 1] == '}') {
         hashmap = hashmap_create(10, 2, 0.7);
-        char *element;
-        char *copy = strdup(&string[1]);
+        copy = strdup(&string[1]);
         copy[strlen(copy) - 1] = '\0';
         while((element = strsep(&copy, ","))) {
             entry = get_hashmap_entry_from_JSON(element);
             hashmap_put(hashmap, entry->key, entry->value, entry->type);
         }
     } else {
-        printf("Parse error...");
+        printf("Parse error...\n");
     }
     
     return hashmap;
@@ -76,21 +82,22 @@ t_hashmap_entry *JSON_parse_list(char *string) {
     
     t_hashmap_entry *list = NULL;
     t_hashmap_entry *entry = NULL;
+    char *element;
+    char *copy;
     
     if(string == NULL || strlen(string) < 3) {
         return NULL;
     }
     
     if(string[0] == '{' && string[strlen(string) - 1] == '}') {
-        char *element;
-        char *copy = strdup(&string[1]);
+        copy = strdup(&string[1]);
         copy[strlen(copy) - 1] = '\0';
         while((element = strsep(&copy, ","))) {
             entry = get_hashmap_entry_from_JSON(element);
             list_chain_append(&list, entry);
         }
     } else {
-        printf("Parse error...");
+        printf("Parse error...\n");
     }
     
     return list;
@@ -102,7 +109,10 @@ t_hashmap_entry *JSON_parse_list(char *string) {
 char *get_string_from_hashmap_entry(t_hashmap_entry *entry) {
     
     char *string = NULL;
-    unsigned long size = strlen(entry->key);
+    unsigned long size;
+    
+    size = strlen(entry->key);
+    
     switch(entry->type) {
         case TYPE_STRING:
             size += strlen((char*)entry->value) + 2;
@@ -131,12 +141,14 @@ char *get_string_from_hashmap_entry(t_hashmap_entry *entry) {
  */
 char *JSON_stringify(t_hashmap *hashmap) {
     
+    t_hashmap_entry *temp;
     char *string = NULL;
     char *element = NULL;
     int i;
+    
     for(i=0; i<hashmap->slots; i++) {
         if(hashmap->entries[i] != NULL) {
-            t_hashmap_entry *temp = hashmap->entries[i];
+            temp = hashmap->entries[i];
             while(temp != NULL) {
                 element = get_string_from_hashmap_entry(temp);
                 
@@ -232,10 +244,10 @@ void print_type(t_hashmap_entry *entry) {
 void print_entity_projections(t_hashmap *entity, t_hashmap_entry *projections) {
     
     t_hashmap_entry *entry;
+    int i;
     
     // If there isn't projections, print all members
     if(projections == NULL) {
-        int i;
         for(i=0; i<entity->slots; i++) {
             if(entity->entries[i] != NULL) {
                 entry = entity->entries[i];
@@ -391,8 +403,6 @@ int sql_remove(command_line *input) {
 
 
 
-
-
 /*
  * Append an element to the chained list pointed to list
  */
@@ -410,11 +420,11 @@ void list_chain_append(t_hashmap_entry **list, t_hashmap_entry *entry) {
  */
 void list_chain_free(t_hashmap_entry *list) {
     
-    t_hashmap_entry *toDelete;
+    t_hashmap_entry *to_delete;
     
     while(list != NULL) {
-        toDelete = list;
+        to_delete = list;
         list = list->next;
-        free(toDelete);
+        free(to_delete);
     }
 }

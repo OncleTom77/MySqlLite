@@ -90,16 +90,18 @@ char *get_value(char *value, unsigned long length) {
 
 command_line *analyse_arguments(int argc, char **args) {
     
+    int i;
+    unsigned long length = 0;
+    char *name;
+    char *value;
+    command_line *input = NULL;
+    
     if(argc < 3) {
         printf("Not enough argument...\n");
         return NULL;
     }
     
-    int i;
-    unsigned long length = 0;
-    char *name;
-    char *value;
-    command_line *input = malloc(sizeof(command_line));
+    input = malloc(sizeof(command_line));
     input->collection = NULL;
     input->act = A_NONE;
     input->action_value = NULL;

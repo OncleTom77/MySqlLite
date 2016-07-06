@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
     hashmap_free(&myHashmap);*/
     
     //int result = 0;
-    command_line* input;
+    command_line *input;
     input = analyse_arguments(argc, argv);
     
     if(input == NULL) {

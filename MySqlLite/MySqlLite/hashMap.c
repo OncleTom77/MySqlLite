@@ -9,10 +9,12 @@
 #include "hashMap.h"
 #include "sql.h"
 
-int getHashCode(char *key) {
+int get_cash_code(char *key) {
     
-    int hash = 5;
-    int i = 0;
+    int hash;
+    int i;
+    
+    hash = 5;
     
     for(i=0; key && *key != '\0'; i++) {
         hash += *key * i;
@@ -27,10 +29,12 @@ int getHashCode(char *key) {
  */
 t_hashmap *hashmap_create(int slots, float grow_factor, float load_factor) {
     
-    t_hashmap *hashmap = malloc(sizeof(t_hashmap));
+    int i;
+    t_hashmap *hashmap;
+    hashmap = malloc(sizeof(t_hashmap));
     
     hashmap->entries = malloc(sizeof(t_hashmap_entry *)*slots);
-    for(int i=0; i<slots; i++) {
+    for(i=0; i<slots; i++) {
         hashmap->entries[i] = NULL;
     }
     hashmap->slots = slots;
@@ -46,7 +50,9 @@ t_hashmap *hashmap_create(int slots, float grow_factor, float load_factor) {
  */
 t_hashmap_entry *hashmap_create_entry(char *key, void *value, type_var type) {
     
-    t_hashmap_entry *entry = malloc(sizeof(t_hashmap_entry));
+    t_hashmap_entry *entry;
+    entry = malloc(sizeof(t_hashmap_entry));
+    
     entry->key = key;
     entry->value = value;
     entry->type = type;
@@ -61,30 +67,33 @@ t_hashmap_entry *hashmap_create_entry(char *key, void *value, type_var type) {
 void hashmap_resize(t_hashmap *hashmap) {
     
     int i;
-    int lastNbSlots = hashmap->slots;
-    t_hashmap_entry **lastEntries = hashmap->entries;
+    int last_nb_slots;
+    t_hashmap_entry **last_entries;
+    t_hashmap_entry *entry;
+    t_hashmap_entry *to_delete;
+    
+    last_nb_slots = hashmap->slots;
+    last_entries = hashmap->entries;
     
     hashmap->size = 0;
-    hashmap->slots = lastNbSlots * hashmap->grow_factor;
+    hashmap->slots = last_nb_slots * hashmap->grow_factor;
     hashmap->entries = malloc(sizeof(t_hashmap_entry *) * hashmap->slots);
-    for(int i=0; i<hashmap->slots; i++) {
+    for(i=0; i<hashmap->slots; i++) {
         hashmap->entries[i] = NULL;
     }
     
-    t_hashmap_entry *entry;
-    t_hashmap_entry *toDelete;
-    
-    for(i=0; i<lastNbSlots; i++) {
-        entry = lastEntries[i];
+    for(i=0; i<last_nb_slots; i++) {
+        entry = last_entries[i];
         while(entry) {
             hashmap_put(hashmap, entry->key, entry->value, entry->type);
             
-            toDelete = entry;
+            to_delete = entry;
             entry = entry->next;
-            free(toDelete);
+            free(to_delete);
         }
     }
-    free(lastEntries);
+    
+    free(last_entries);
 }
 
 /*
@@ -93,8 +102,11 @@ void hashmap_resize(t_hashmap *hashmap) {
 void hashmap_put(t_hashmap *hashmap, char *key, void *value, type_var type) {
     
     if(hashmap) {
-        int numSlot = getHashCode(key) % hashmap->slots;
-        t_hashmap_entry **entry = &(hashmap->entries[numSlot]);
+        int num_slot;
+        t_hashmap_entry **entry;
+        
+        num_slot = get_hash_code(key) % hashmap->slots;
+        entry = &(hashmap->entries[num_slot]);
         
         // If the key already exists, update its value
         if(hashmap_get(hashmap, key)) {
@@ -108,10 +120,9 @@ void hashmap_put(t_hashmap *hashmap, char *key, void *value, type_var type) {
         } else {
             // If the size of the map is up to the number of slots * load_factor, resize the hashmap
             if(hashmap->size + 1 >= hashmap->slots * hashmap->load_factor) {
-                printf("Resize !\n");
                 hashmap_resize(hashmap);
-                numSlot = getHashCode(key) % hashmap->slots;
-                entry = &(hashmap->entries[numSlot]);
+                num_slot = get_hash_code(key) % hashmap->slots;
+                entry = &(hashmap->entries[num_slot]);
             }
             
             while(*entry) {
@@ -130,11 +141,14 @@ void hashmap_put(t_hashmap *hashmap, char *key, void *value, type_var type) {
 t_hashmap_entry *hashmap_get_entry(t_hashmap *hashmap, char *key) {
     
     if(hashmap) {
-        int numSlot = getHashCode(key)%hashmap->slots;
-        t_hashmap_entry **entry = &(hashmap->entries[numSlot]);
+        int num_slot;
+        t_hashmap_entry **entry;
+        
+        num_slot = get_hash_code(key) % hashmap->slots;
+        entry = &(hashmap->entries[num_slot]);
         
         while(*entry) {
-            // Return the matching key
+            // Return the matching entry
             if(strcmp((*entry)->key, key) == 0) {
                 return *entry;
             }
@@ -150,8 +164,11 @@ t_hashmap_entry *hashmap_get_entry(t_hashmap *hashmap, char *key) {
 void *hashmap_get(t_hashmap *hashmap, char *key) {
     
     if(hashmap) {
-        int numSlot = getHashCode(key)%hashmap->slots;
-        t_hashmap_entry **entry = &(hashmap->entries[numSlot]);
+        int num_slot;
+        t_hashmap_entry **entry;
+        
+        num_slot = get_hash_code(key) % hashmap->slots;
+        entry = &(hashmap->entries[num_slot]);
         
         while(*entry) {
             // Return the matching key
@@ -170,15 +187,19 @@ void *hashmap_get(t_hashmap *hashmap, char *key) {
 void hashmap_remove(t_hashmap *hashmap, char *key) {
     
     if(hashmap) {
-        int numSlot = getHashCode(key)%hashmap->slots;
-        t_hashmap_entry **entry = &(hashmap->entries[numSlot]);
+        int num_slot;
+        t_hashmap_entry **entry;
+        t_hashmap_entry *to_delete;
+        
+        num_slot = get_hash_code(key) % hashmap->slots;
+        entry = &(hashmap->entries[num_slot]);
         
         while(*entry) {
             // Remove the current element if it is the good one
             if(strcmp((*entry)->key, key) == 0) {
-                t_hashmap_entry *toDelete = *entry;
+                to_delete = *entry;
                 *entry = (*entry)->next;
-                free(toDelete);
+                free(to_delete);
                 hashmap->size--;
                 return;
             }
@@ -213,7 +234,8 @@ void print_entry(t_hashmap_entry *entry) {
 void hashmap_print(t_hashmap *hashmap) {
     
     int i;
-    t_hashmap_entry *temp;
+    t_hashmap_entry *temp = NULL;
+    
     printf("--------------- HASHMAP CONTENT ---------------\n");
     printf("Size : %d\n", hashmap->size);
     for(i=0; i<hashmap->slots; i++) {
@@ -238,22 +260,25 @@ void hashmap_print(t_hashmap *hashmap) {
  */
 void hashmap_free(t_hashmap **hashmap) {
     
+    int i;
+    t_hashmap_entry *to_delete = NULL;
+    t_hashmap_entry *temp = NULL;
+    
     if(*hashmap == NULL) {
         return;
     }
     
-    int i;
     for(i=0; i<(*hashmap)->slots; i++) {
         if((*hashmap)->entries[i] != NULL) {
-            t_hashmap_entry *temp = (*hashmap)->entries[i];
-            t_hashmap_entry *toDelete = NULL;
+            temp = (*hashmap)->entries[i];
             while(temp != NULL) {
-                toDelete = temp;
+                to_delete = temp;
                 temp = temp->next;
-                free(toDelete);
+                free(to_delete);
             }
         }
     }
+    
     free(*hashmap);
     *hashmap = NULL;
     hashmap = NULL;

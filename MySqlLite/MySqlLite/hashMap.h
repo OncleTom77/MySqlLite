@@ -38,7 +38,7 @@ typedef struct t_hashmap {
     
 } t_hashmap;
 
-int getHashCode(char *);
+int get_hash_code(char *);
 t_hashmap *hashmap_create(int, float, float);
 t_hashmap_entry *hashmap_create_entry(char *, void *, type_var);
 void hashmap_resize(t_hashmap*);
