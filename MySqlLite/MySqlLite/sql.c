@@ -22,7 +22,7 @@ t_hashmap_entry *get_hashmap_entry_from_JSON(char *string) {
         char *key;
         key = strsep(&string, ":");
         
-        if(string[0] == '\'') {
+        if(string[0] == '\'' || string[0] == '\"') {
             string++;
             string[strlen(string)-1] = '\0';
             char *value;
@@ -194,20 +194,24 @@ int is_matching(t_hashmap *entity, t_hashmap *constraints) {
     t_hashmap_entry *entry;
     t_hashmap_entry *temp;
     
+    if(constraints == NULL) {
+        return 0;
+    }
+    
     // For each constraint, compare its value with the value of entity field
     for(i=0; i<constraints->slots; i++) {
         if(constraints->entries[i] != NULL) {
             temp = constraints->entries[i];
             while(temp != NULL) {
                 if((entry = hashmap_get_entry(entity, temp->key)) == NULL) {
-                    //printf("The '%s' key does not exist in the selected collection.\n", temp->key);
+                    printf("The '%s' key does not exist in the selected collection.\n", temp->key);
                     return -1;
                 }
                 if(temp->type != entry->type) {
-                    //printf("Wrong type of value for the '%s' key.\n", temp->key);
+                    printf("Wrong type of value for the '%s' key : %d != %d\n", temp->key, temp->type, entry->type);
                     return -1;
                 }
-                if(!is_equal(temp->value, entry->value, temp->type)) {
+                if(is_equal(temp->value, entry->value, temp->type) != 0) {
                     return -1;
                 }
                 temp = temp->next;
@@ -287,7 +291,7 @@ void sql_find(command_line *input) {
     long length = 0;
     long file_length = 0;
     
-    path = malloc(sizeof(char)*(strlen(input->collection)+20));
+    path = malloc(sizeof(char)*(strlen(input->collection)+strlen(BASE_NO_SQL)+6));
     sprintf(path, "%s/%s.txt", BASE_NO_SQL, input->collection);
     
     file = fopen(path, "rb");
@@ -313,11 +317,11 @@ void sql_find(command_line *input) {
                 strncpy(JSON_string, content, length);
                 JSON_string[length] = '\0';
                 
-                // Parse the string to get a hashmap of it
+                // Parse the JSON string to get a hashmap of it
                 entity = JSON_parse(JSON_string);
                 
                 // Print the entity if it respects the constraints of the -find command
-                if(is_matching(entity, constraints)) {
+                if(is_matching(entity, constraints) == 0) {
                     print_entity_projections(entity, projections);
                 }
                 
@@ -359,7 +363,7 @@ void sql_insert(command_line *input) {
     long length;
     char *path = NULL;
     
-    path = malloc(sizeof(char)*(strlen(input->collection)+20));
+    path = malloc(sizeof(char)*(strlen(input->collection)+strlen(BASE_NO_SQL)+6));
     sprintf(path, "%s/%s.txt", BASE_NO_SQL, input->collection);
     
     // Try to open the file in 'r' mode. If file is NULL, create the file with the 'w' mode
@@ -388,19 +392,125 @@ void sql_insert(command_line *input) {
 /*
  * Update some values from existing sql entities, respecting some constraints
  */
-int sql_set(command_line *input) {
+void sql_set(command_line *input) {
     
-    return 0;
+    return;
 }
 
 /*
  * Remove existing sql entities respecting some constraints
  */
-int sql_remove(command_line *input) {
+void sql_remove(command_line *input) {
     
-    return 0;
+    t_hashmap *entity = NULL;
+    t_hashmap *constraints = NULL;
+    FILE *file = NULL;
+    char *path = NULL;
+    char *pos = NULL;
+    char *JSON_string = NULL;
+    char *content = NULL;
+    long length = 0;
+    long file_length = 0;
+    long cur_position = 0;
+    int nb_entity_deleted = 0;
+    
+    path = malloc(sizeof(char)*(strlen(input->collection)+strlen(BASE_NO_SQL)+6));
+    sprintf(path, "%s/%s.txt", BASE_NO_SQL, input->collection);
+    
+    file = fopen(path, "rb");
+    if(file != NULL) {
+        // Get the length of the file and read it
+        fseek(file, 0, SEEK_END);
+        file_length = ftell(file);
+        fseek(file, 0, SEEK_SET);
+        
+        content = malloc(sizeof(char)*(file_length+1));
+        
+        if(fread(content, sizeof(char), file_length, file) == file_length) {
+            constraints = JSON_parse(input->action_value);
+            
+            // Get each entity of the file
+            while(content[cur_position] != '\0' && (pos = strchr(&content[cur_position], '}')) != NULL && *(pos-1) != '\\') {
+                pos += 1;
+                length = pos - &content[cur_position];
+                
+                // Get the JSON string of the current object
+                JSON_string = malloc(sizeof(char) * (length+1));
+                strncpy(JSON_string, &content[cur_position], length);
+                JSON_string[length] = '\0';
+                
+                // Parse the JSON string to get a hashmap of it
+                entity = JSON_parse(JSON_string);
+                
+                // Delete the entity in the file if it respects the constraints of the -remove command
+                if(is_matching(entity, constraints) == 0) {
+                    content = revert_substr(content, cur_position, length);
+                    nb_entity_deleted++;
+                } else {
+                    cur_position += length;
+                }
+                
+                free(JSON_string);
+            }
+            
+            fclose(file);
+            
+            // Open the file in wb mode to replace the content of the file by the content string
+            fopen(path, "wb");
+            fwrite(content, sizeof(char), strlen(content), file);
+            
+            printf("%d objects has been deleted successfully !\n", nb_entity_deleted);
+            
+            if(entity != NULL) {
+                hashmap_free(&entity);
+            }
+            if(constraints != NULL) {
+                hashmap_free(&constraints);
+            }
+        } else {
+            printf("An error occurred while reading the file\n");
+        }
+        
+        free(content);
+    } else {
+        printf("The '%s' collection does not exist.\n", input->collection);
+        printf("The '%s' path have not could be resolved\n", path);
+    }
+    
+    free(path);
+    fclose(file);
 }
 
+/*
+ * Return the str string without the characters between start_pos and start_pos + length
+ */
+char *revert_substr(char *str, long start_pos, long length) {
+    
+    char *new_string = str;
+    long old_length = 0;
+    long count = 0;
+    int i;
+    
+    if(str && start_pos >= 0 && length >= 0 && start_pos+length <= (old_length = strlen(str))) {
+        long new_length = old_length - length;
+        new_string = malloc(sizeof(char)*(new_length+1));
+        
+        // Copy all characters that are not in the range between start_pos and start_pos + length
+        for(i=0; i<old_length; i++) {
+            if(i >= start_pos && i < start_pos + length) {
+                continue;
+            }
+            new_string[count++] = str[i];
+        }
+        
+        new_string[new_length] = '\0';
+        
+        free(str);
+        str = new_string;
+    }
+    
+    return new_string;
+}
 
 
 /*

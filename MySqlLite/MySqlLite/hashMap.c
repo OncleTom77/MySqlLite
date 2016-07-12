@@ -9,7 +9,7 @@
 #include "hashMap.h"
 #include "sql.h"
 
-int get_cash_code(char *key) {
+int get_hash_code(char *key) {
     
     int hash;
     int i;
@@ -279,6 +279,7 @@ void hashmap_free(t_hashmap **hashmap) {
         }
     }
     
+    free((*hashmap)->entries);
     free(*hashmap);
     *hashmap = NULL;
     hashmap = NULL;
