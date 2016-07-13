@@ -65,7 +65,10 @@ t_hashmap *JSON_parse(char *string) {
         copy = strdup(&string[1]);
         copy[strlen(copy) - 1] = '\0';
         while((element = strsep(&copy, ","))) {
-            entry = get_hashmap_entry_from_JSON(element);
+            if((entry = get_hashmap_entry_from_JSON(element)) == NULL) {
+                hashmap_free(&hashmap);
+                return NULL;
+            }
             hashmap_put(hashmap, entry->key, entry->value, entry->type);
         }
     } else {
@@ -93,7 +96,10 @@ t_hashmap_entry *JSON_parse_list(char *string) {
         copy = strdup(&string[1]);
         copy[strlen(copy) - 1] = '\0';
         while((element = strsep(&copy, ","))) {
-            entry = get_hashmap_entry_from_JSON(element);
+            if((entry = get_hashmap_entry_from_JSON(element)) == NULL) {
+                list_chain_free(list);
+                return NULL;
+            }
             list_chain_append(&list, entry);
         }
     } else {
@@ -200,26 +206,49 @@ int is_matching(t_hashmap *entity, t_hashmap *constraints) {
     
     // For each constraint, compare its value with the value of entity field
     for(i=0; i<constraints->slots; i++) {
-        if(constraints->entries[i] != NULL) {
-            temp = constraints->entries[i];
-            while(temp != NULL) {
-                if((entry = hashmap_get_entry(entity, temp->key)) == NULL) {
-                    printf("The '%s' key does not exist in the selected collection.\n", temp->key);
-                    return -1;
-                }
-                if(temp->type != entry->type) {
-                    printf("Wrong type of value for the '%s' key : %d != %d\n", temp->key, temp->type, entry->type);
-                    return -1;
-                }
-                if(is_equal(temp->value, entry->value, temp->type) != 0) {
-                    return -1;
-                }
-                temp = temp->next;
+        temp = constraints->entries[i];
+        while(temp != NULL) {
+            if((entry = hashmap_get_entry(entity, temp->key)) == NULL) {
+                printf("The '%s' key does not exist in the selected collection.\n", temp->key);
+                return -1;
             }
+            if(temp->type != entry->type) {
+                printf("Wrong type of value for the '%s' key : %d != %d\n", temp->key, temp->type, entry->type);
+                return -1;
+            }
+            if(is_equal(temp->value, entry->value, temp->type) != 0) {
+                return -1;
+            }
+            temp = temp->next;
         }
     }
     
     return 0;
+}
+
+/*
+ * Update entity's values with values that are in new_values
+ */
+void update_entity(t_hashmap *entity, t_hashmap *new_values) {
+    
+    int i;
+    t_hashmap_entry *entry;
+    t_hashmap_entry *temp;
+    
+    // For each member, update the value of this member in entity, if it exists
+    for(i=0; i<new_values->slots; i++) {
+        temp = new_values->entries[i];
+        while(temp != NULL) {
+            if((entry = hashmap_get_entry(entity, temp->key)) == NULL) {
+                printf("The '%s' key does not exist in the selected collection.\n", temp->key);
+            } else if(temp->type != entry->type) {
+                printf("Wrong type of value for the '%s' key : %d != %d\n", temp->key, temp->type, entry->type);
+            } else {
+                hashmap_put(entity, temp->key, temp->value, temp->type);
+            }
+            temp = temp->next;
+        }
+    }
 }
 
 /**
@@ -394,7 +423,98 @@ void sql_insert(command_line *input) {
  */
 void sql_set(command_line *input) {
     
-    return;
+    t_hashmap *entity = NULL;
+    t_hashmap *values = NULL;
+    t_hashmap *constraints = NULL;
+    FILE *file = NULL;
+    char *path = NULL;
+    char *pos = NULL;
+    char *JSON_string = NULL;
+    char *content = NULL;
+    long length = 0;
+    long file_length = 0;
+    long cur_position = 0;
+    int nb_entity_updated = 0;
+    
+    if((constraints = JSON_parse(input->where_value)) == NULL) {
+        printf("The WHERE clause is missing or incorrect\n");
+        return;
+    }
+    
+    path = malloc(sizeof(char)*(strlen(input->collection)+strlen(BASE_NO_SQL)+6));
+    sprintf(path, "%s/%s.txt", BASE_NO_SQL, input->collection);
+    
+    file = fopen(path, "rb");
+    if(file != NULL) {
+        // Get the length of the file and read it
+        fseek(file, 0, SEEK_END);
+        file_length = ftell(file);
+        fseek(file, 0, SEEK_SET);
+        
+        content = malloc(sizeof(char)*(file_length+1));
+        
+        if(fread(content, sizeof(char), file_length, file) == file_length) {
+            values = JSON_parse(input->action_value);
+            
+            // Get each entity of the file
+            while(content[cur_position] != '\0' && (pos = strchr(&content[cur_position], '}')) != NULL) {
+                pos++;
+                if(*(pos-2) == '\\') {
+                    continue;
+                }
+                
+                length = pos - &content[cur_position];
+                
+                // Get the JSON string of the current object
+                JSON_string = malloc(sizeof(char) * (length+1));
+                strncpy(JSON_string, &content[cur_position], length);
+                JSON_string[length] = '\0';
+                
+                // Parse the JSON string to get a hashmap of it
+                entity = JSON_parse(JSON_string);
+                
+                // Update the entity's values in the file if it respects the constraints of the -where clause
+                if(is_matching(entity, constraints) == 0) {
+                    update_entity(entity, values);
+                    char *str = JSON_stringify(entity);
+                    
+                    content = replace_substring(content, cur_position, length, str);
+                    cur_position += strlen(str);
+                    nb_entity_updated++;
+                    free(str);
+                } else {
+                    cur_position += length;
+                }
+                
+                free(JSON_string);
+            }
+            
+            fclose(file);
+            
+            // Open the file in wb mode to replace the content of the file by the content string
+            fopen(path, "wb");
+            fwrite(content, sizeof(char), strlen(content), file);
+            
+            printf("%d objects has been deleted successfully !\n", nb_entity_updated);
+            
+            if(entity != NULL) {
+                hashmap_free(&entity);
+            }
+            if(constraints != NULL) {
+                hashmap_free(&constraints);
+            }
+        } else {
+            printf("An error occurred while reading the file\n");
+        }
+        
+        free(content);
+    } else {
+        printf("The '%s' collection does not exist.\n", input->collection);
+        printf("The '%s' path have not could be resolved\n", path);
+    }
+    
+    free(path);
+    fclose(file);
 }
 
 /*
@@ -482,16 +602,16 @@ void sql_remove(command_line *input) {
 }
 
 /*
- * Return the str string without the characters between start_pos and start_pos + length
+ * Return the content string without the characters between start_pos and start_pos + length
  */
-char *revert_substr(char *str, long start_pos, long length) {
+char *revert_substr(char *content, long start_pos, long length) {
     
-    char *new_string = str;
+    char *new_string = content;
     long old_length = 0;
     long count = 0;
     int i;
     
-    if(str && start_pos >= 0 && length >= 0 && start_pos+length <= (old_length = strlen(str))) {
+    if(content && start_pos >= 0 && length >= 0 && start_pos+length <= (old_length = strlen(content))) {
         long new_length = old_length - length;
         new_string = malloc(sizeof(char)*(new_length+1));
         
@@ -500,18 +620,48 @@ char *revert_substr(char *str, long start_pos, long length) {
             if(i >= start_pos && i < start_pos + length) {
                 continue;
             }
-            new_string[count++] = str[i];
+            new_string[count++] = content[i];
         }
         
         new_string[new_length] = '\0';
         
-        free(str);
-        str = new_string;
+        free(content);
+        content = new_string;
     }
     
     return new_string;
 }
 
+/*
+ * Return the content string replacing the characters between pos and pos + length by str
+ */
+char *replace_substring(char *content, long pos, long length, char *str) {
+    
+    long content_length = strlen(content);
+    long str_length = strlen(str);
+    char *new_string = content;
+    int count = 0;
+    long i;
+    
+    if(str && pos >= 0 && length >= 0 && pos + length <= content_length) {
+        new_string = malloc(sizeof(char) * (content_length - length + str_length + 1));
+        for(i=0; i<pos; i++, count++) {
+            new_string[count] = content[i];
+        }
+        for(i=0; i<str_length; i++, count++) {
+            new_string[count] = str[i];
+        }
+        for(i=pos+length; i<content_length; i++, count++) {
+            new_string[count] = content[i];
+        }
+        
+        new_string[count] = '\0';
+        free(content);
+        content = new_string;
+    }
+    
+    return new_string;
+}
 
 /*
  * Append an element to the chained list pointed to list
