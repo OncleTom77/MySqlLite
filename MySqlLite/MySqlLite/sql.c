@@ -164,6 +164,7 @@ char *JSON_stringify(t_hashmap *hashmap) {
                 }
                 strcat(string, element);
                 temp = temp->next;
+                free(element);
             }
         }
     }
@@ -195,6 +196,9 @@ int is_matching(t_hashmap *entity, t_hashmap *constraints) {
     int i;
     t_hashmap_entry *entry;
     t_hashmap_entry *temp;
+    
+    if (entity == NULL)
+        return -1;
     
     if (constraints == NULL)
         return 0;
@@ -231,6 +235,9 @@ void update_entity(t_hashmap *entity, t_hashmap *new_values) {
     int i;
     t_hashmap_entry *entry;
     t_hashmap_entry *temp;
+    
+    if(entity == NULL || new_values == NULL)
+        return;
     
     // For each member, update the value of this member in entity, if it exists
     for (i = 0; i < new_values->slots; i++) {
@@ -294,10 +301,9 @@ void print_entity_projections(t_hashmap *entity, t_hashmap_entry *projections) {
     
     // For each projection, print the value of entity fields
     while (projections != NULL) {
-        if ((entry = hashmap_get_entry(entity, projections->key)) == NULL)
-            return;
-
-        print_type(entry);
+        if ((entry = hashmap_get_entry(entity, projections->key)) != NULL)
+            print_type(entry);
+        
         projections = projections->next;
     }
     
@@ -440,6 +446,11 @@ void sql_set(command_line *input) {
     long cur_position       = 0;
     int nb_entity_updated   = 0;
     
+    if ((values = JSON_parse(input->action_value)) == NULL) {
+        printf("The SET command is empty or invalid\n");
+        return;
+    }
+    
     if ((constraints = JSON_parse(input->where_value)) == NULL) {
         printf("The WHERE clause is missing or incorrect\n");
         return;
@@ -458,8 +469,6 @@ void sql_set(command_line *input) {
         content = malloc(sizeof(char)*(file_length+1));
         
         if (fread(content, sizeof(char), file_length, file) == file_length) {
-            values = JSON_parse(input->action_value);
-            
             // Get each entity of the file
             while (content[cur_position] != '\0' && (pos = strchr(&content[cur_position], '}')) != NULL) {
                 pos++;
@@ -491,6 +500,9 @@ void sql_set(command_line *input) {
                     cur_position += length;
              
                 free(JSON_string);
+                
+                if (entity != NULL)
+                    hashmap_free(&entity);
             }
             
             fclose(file);
@@ -499,25 +511,22 @@ void sql_set(command_line *input) {
             fopen(path, "wb");
             fwrite(content, sizeof(char), strlen(content), file);
             
-            printf("%d objects has been deleted successfully !\n", nb_entity_updated);
-            
-            if (entity != NULL)
-                hashmap_free(&entity);
-
-            if (constraints != NULL)
-                hashmap_free(&constraints);
+            printf("%d objects has been updated successfully !\n", nb_entity_updated);
         }
         else
             printf("An error occurred while reading the file\n");
         
         free(content);
+        fclose(file);
     } else {
         printf("The '%s' collection does not exist.\n", input->collection);
         printf("The '%s' path have not could be resolved\n", path);
     }
     
+    if (constraints != NULL)
+        hashmap_free(&constraints);
+    
     free(path);
-    fclose(file);
 }
 
 /*
