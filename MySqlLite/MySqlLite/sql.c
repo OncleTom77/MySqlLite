@@ -523,8 +523,8 @@ void sql_set(command_line *input) {
         printf("The '%s' path have not could be resolved\n", path);
     }
     
-    if (constraints != NULL)
-        hashmap_free(&constraints);
+    hashmap_free(&values);
+    hashmap_free(&constraints);
     
     free(path);
 }
