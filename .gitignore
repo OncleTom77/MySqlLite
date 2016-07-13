@@ -1,2 +1,4 @@
 /MySqlLite/build
 /MySqlLite/MySqlLite.xcodeproj
+MySqlLite/mysqllite
+**/*.o

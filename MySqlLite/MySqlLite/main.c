@@ -1,17 +1,6 @@
-//
-//  main.c
-//  MySqlLite
-//
-//  Created by Thomas Fouan on 22/06/2016.
-//  Copyright © 2016 Thomas Fouan. All rights reserved.
-//
+#include "includes.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include "sql.h"
-#include "command.h"
-
-int main(int argc, char *argv[]) {
+int main(int argc, char **argv) {
     
     /*t_hashmap* hashmap = hashmap_create(10, 2, 0.7);
     
@@ -44,9 +33,8 @@ int main(int argc, char *argv[]) {
     command_line *input;
     input = analyse_arguments(argc, argv);
     
-    if(input == NULL) {
-        return -1;
-    }
+    if (input == NULL)
+        return EXIT_FAILURE;
     
     switch (input->act) {
         case A_FIND:
@@ -77,5 +65,5 @@ int main(int argc, char *argv[]) {
     
     free(input);
     
-    return 0;
+    return EXIT_SUCCESS;
 }
