@@ -6,8 +6,11 @@
 #include <string.h>
 
 #include "command.h"
+#include "hashmap_entry.h"
 #include "hashMap.h"
+#include "json.h"
 #include "sql.h"
+#include "utils.h"
 
 #define BASE_NO_SQL "./BaseNoSql"
 

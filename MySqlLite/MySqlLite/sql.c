@@ -1,194 +1,6 @@
 #include "includes.h"
 
 /*
- * Transform nom:'toto' or age:18 in hashmapEntry
- */
-t_hashmap_entry *get_hashmap_entry_from_JSON(char *string) {
-    
-    t_hashmap_entry *entry = NULL;
-    
-    if (strstr(string, ":")) {
-        char *key;
-        key = strsep(&string, ":");
-        
-        if (string[0] == '\'' || string[0] == '\"') {
-            char *value;
-
-            string++;
-            string[strlen(string)-1] = '\0';
-            
-            value = strdup(string);
-            entry = hashmap_create_entry(key, value, TYPE_STRING);
-        } else if (strchr(string, '.')) {
-            double *value;
-
-            value   = malloc(sizeof(double));
-            *value  = strtod(string, NULL);
-            entry   = hashmap_create_entry(key, value, TYPE_DOUBLE);
-        } else {
-            int *value;
-
-            value   = malloc(sizeof(int));
-            *value  = atoi(string);
-            entry   = hashmap_create_entry(key, value, TYPE_INT);
-        }
-    } else {
-        printf("Parse error...\n");
-    }
-    
-    return entry;
-}
-
-/*
- * Transform a JSON string (e.g., {nom:'toto',prenom:'youyou',age:18}) in hashmap with a t_hashmapEntry for each key/value
- */
-t_hashmap *JSON_parse(char *string) {
-    
-    t_hashmap *hashmap      = NULL;
-    t_hashmap_entry *entry  = NULL;
-    char *element;
-    char *copy;
-    
-    if (string == NULL || strlen(string) < 3) {
-        return NULL;
-    }
-    
-    if(string[0] == '{' && string[strlen(string) - 1] == '}') {
-        hashmap = hashmap_create(10, 2, 0.7);
-        copy    = strdup(&string[1]);
-        copy[strlen(copy) - 1] = '\0';
-
-        while ((element = strsep(&copy, ","))) {
-            if ((entry = get_hashmap_entry_from_JSON(element)) == NULL) {
-                hashmap_free(&hashmap);
-                return NULL;
-            }
-
-            hashmap_put(hashmap, entry->key, entry->value, entry->type);
-        }
-    } else {
-        printf("Parse error...\n");
-    }
-    
-    return hashmap;
-}
-
-/*
- * Get a chained list of t_hashmap_entry from JSON string
- */
-t_hashmap_entry *JSON_parse_list(char *string) {
-    
-    t_hashmap_entry *list   = NULL;
-    t_hashmap_entry *entry  = NULL;
-    char *element;
-    char *copy;
-    
-    if (string == NULL || strlen(string) < 3)
-        return NULL;
-    
-    if(string[0] == '{' && string[strlen(string) - 1] == '}') {
-        copy = strdup(&string[1]);
-        copy[strlen(copy) - 1] = '\0';
-
-        while ((element = strsep(&copy, ","))) {
-            if ((entry = get_hashmap_entry_from_JSON(element)) == NULL) {
-                list_chain_free(list);
-                return NULL;
-            }
-
-            list_chain_append(&list, entry);
-        }
-    }
-    else
-        printf("Parse error...\n");
-    
-    return list;
-}
-
-/*
- * Transform hashmapEntry to nom:'toto' or age:18
- */
-char *get_string_from_hashmap_entry(t_hashmap_entry *entry) {
-    
-    char *string = NULL;
-    unsigned long size;
-    
-    size = strlen(entry->key);
-    
-    switch (entry->type) {
-        case TYPE_STRING:
-            size += strlen((char*)entry->value) + 2;
-            string = malloc(sizeof(char)*size);
-            sprintf(string, "%s:'%s'", entry->key, (char *)entry->value);
-            break;
-            
-        case TYPE_DOUBLE:
-            size += 30; // number of digits of the double value
-            string = malloc(sizeof(char)*size);
-            sprintf(string, "%s:%lf", entry->key, *((double *)entry->value));
-            break;
-            
-        case TYPE_INT:
-            size += 20; // number of digits of the int value
-            string = malloc(sizeof(char)*size);
-            sprintf(string, "%s:%d", entry->key, *((int *)entry->value));
-            break;
-    }
-    
-    return string;
-}
-
-/*
- * Transform hashmap in a JSON string (e.g, {nom:'toto',prenom:'youyou',age:18})
- */
-char *JSON_stringify(t_hashmap *hashmap) {
-    
-    t_hashmap_entry *temp;
-    char *string = NULL;
-    char *element = NULL;
-    int i;
-    
-    for (i = 0; i < hashmap->slots; i++) {
-        if (hashmap->entries[i] != NULL) {
-            temp = hashmap->entries[i];
-            
-            while (temp != NULL) {
-                element = get_string_from_hashmap_entry(temp);
-                
-                if (!string) {
-                    string = realloc(string, sizeof(char) * (strlen(element) + 2));
-                    string[0] = '{';
-                } else {
-                    string = realloc(string, sizeof(char) * (strlen(string) + strlen(element) + 1));
-                    strcat(string, ",");
-                }
-                strcat(string, element);
-                temp = temp->next;
-                free(element);
-            }
-        }
-    }
-    strcat(string, "}");
-    
-    return string;
-}
-
-/*
- * Return 0 if value1 and value2 are equals. Else, return -1
- */
-int is_equal(void *value1, void *value2, type_var type) {
-    
-    if (type == TYPE_STRING && strcmp((char *)value1, (char *)value2) == 0)
-        return 0;
-    else if (type == TYPE_INT && *((int *) value1) == *((int *) value2))
-        return 0;
-    else if (type == TYPE_DOUBLE && *((double *) value1) == *((double *) value2))
-        return 0;
-    
-    return -1;
-}
-
-/*
  * Return 0 if the entity's values match with the constraints
  */
 int is_matching(t_hashmap *entity, t_hashmap *constraints) {
@@ -257,26 +69,6 @@ void update_entity(t_hashmap *entity, t_hashmap *new_values) {
     }
 }
 
-/**
- * Print the entry accordingly to the type of the value
- */
-void print_type(t_hashmap_entry *entry) {
-    
-    switch (entry->type) {
-        case TYPE_STRING:
-            printf("%s\t", (char *) entry->value);
-            break;
-        case TYPE_INT:
-            printf("%d\t", *((int *) entry->value));
-            break;
-        case TYPE_DOUBLE:
-            printf("%lf\t", *((double *) entry->value));
-            break;
-        default:
-            printf("unknown\t");
-    }
-}
-
 /*
  * Print the entity's values informed in projections
  */
@@ -326,7 +118,7 @@ void sql_find(command_line *input) {
     long length                     = 0;
     long file_length                = 0;
     
-    path = malloc(sizeof(char) * (strlen(input->collection)+ strlen(BASE_NO_SQL) + 6));
+    path = malloc(sizeof(char) * (strlen(input->collection) + strlen(BASE_NO_SQL) + 6));
 
     sprintf(path, "%s/%s.txt", BASE_NO_SQL, input->collection);
     
@@ -337,7 +129,7 @@ void sql_find(command_line *input) {
         file_length = ftell(file);
         fseek(file, 0, SEEK_SET);
         
-        content = malloc(sizeof(char)*(file_length));
+        content = malloc(sizeof(char) * file_length);
 
         if (fread(content, sizeof(char), file_length, file) == file_length) {
             constraints = JSON_parse(input->action_value);
@@ -346,11 +138,11 @@ void sql_find(command_line *input) {
             
             // Get each entity in the file
             while (*content != '\0' && (pos = strchr(content, '}')) != NULL && *(pos-1) != '\\') {
-                pos     += 1;
-                length  = pos-content;
+                pos++;
+                length  = pos - content;
                 
                 // Get the JSON string of the current object
-                JSON_string = malloc(sizeof(char) * (length+1));
+                JSON_string = malloc(sizeof(char) * (length + 1));
                 strncpy(JSON_string, content, length);
                 JSON_string[length] = '\0';
                 
@@ -373,7 +165,7 @@ void sql_find(command_line *input) {
                 hashmap_free(&constraints);
 
             if (projections != NULL)
-                list_chain_free(projections);
+                hashmap_entry_free(projections);
 
         }
         else
@@ -456,7 +248,7 @@ void sql_set(command_line *input) {
         return;
     }
     
-    path = malloc(sizeof(char)*(strlen(input->collection)+strlen(BASE_NO_SQL)+6));
+    path = malloc(sizeof(char) * (strlen(input->collection) + strlen(BASE_NO_SQL) + 6));
     sprintf(path, "%s/%s.txt", BASE_NO_SQL, input->collection);
     
     file = fopen(path, "rb");
@@ -466,7 +258,7 @@ void sql_set(command_line *input) {
         file_length = ftell(file);
         fseek(file, 0, SEEK_SET);
         
-        content = malloc(sizeof(char)*(file_length+1));
+        content = malloc(sizeof(char) * (file_length + 1));
         
         if (fread(content, sizeof(char), file_length, file) == file_length) {
             // Get each entity of the file
@@ -600,7 +392,6 @@ void sql_remove(command_line *input) {
 
             if (constraints != NULL)
                 hashmap_free(&constraints);
-
         }
         else
             printf("An error occurred while reading the file\n");
@@ -613,91 +404,4 @@ void sql_remove(command_line *input) {
     
     free(path);
     fclose(file);
-}
-
-/*
- * Return the content string without the characters between start_pos and start_pos + length
- */
-char *revert_substr(char *content, long start_pos, long length) {
-    
-    char *new_string    = content;
-    long old_length     = 0;
-    long count          = 0;
-    int i;
-    
-    if (content && start_pos >= 0 && length >= 0 && start_pos+length <= (old_length = strlen(content))) {
-        long new_length = old_length - length;
-        new_string      = malloc(sizeof(char)*(new_length+1));
-        
-        // Copy all characters that are not in the range between start_pos and start_pos + length
-        for (i = 0; i < old_length; i++) {
-            if (i >= start_pos && i < start_pos + length)
-                continue;
-
-            new_string[count++] = content[i];
-        }
-        
-        new_string[new_length] = '\0';
-        
-        free(content);
-        content = new_string;
-    }
-    
-    return new_string;
-}
-
-/*
- * Return the content string replacing the characters between pos and pos + length by str
- */
-char *replace_substring(char *content, long pos, long length, char *str) {
-    
-    long content_length = strlen(content);
-    long str_length = strlen(str);
-    char *new_string = content;
-    int count = 0;
-    long i;
-    
-    if (str && pos >= 0 && length >= 0 && pos + length <= content_length) {
-        new_string = malloc(sizeof(char) * (content_length - length + str_length + 1));
-        for (i = 0; i < pos; i++, count++)
-            new_string[count] = content[i];
-
-        for (i = 0; i < str_length; i++, count++)
-            new_string[count] = str[i];
-
-        for(i = pos + length; i < content_length; i++, count++)
-            new_string[count] = content[i];
-        
-        new_string[count] = '\0';
-        free(content);
-        content = new_string;
-    }
-    
-    return new_string;
-}
-
-/*
- * Append an element to the chained list pointed to list
- */
-void list_chain_append(t_hashmap_entry **list, t_hashmap_entry *entry) {
-    
-    while (*list != NULL)
-        list = &(*list)->next;
-    
-    *list = entry;
-}
-
-/*
- * Free the memory allocated by the chained list
- */
-void list_chain_free(t_hashmap_entry *list) {
-    
-    t_hashmap_entry *to_delete;
-    
-    while (list != NULL) {
-        to_delete   = list;
-        list        = list->next;
-
-        free(to_delete);
-    }
 }

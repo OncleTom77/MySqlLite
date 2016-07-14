@@ -1,20 +1,5 @@
 #include "includes.h"
 
-int get_hash_code(char *key) {
-    
-    int hash;
-    int i;
-    
-    hash = 5;
-    
-    for(i = 0; key && *key != '\0'; i++) {
-        hash += *key * i;
-        key++;
-    }
-    
-    return hash;
-}
-
 /* 
  * Init the hashmap
  */
@@ -23,8 +8,8 @@ t_hashmap *hashmap_create(int slots, float grow_factor, float load_factor) {
     int i;
     t_hashmap *hashmap;
 
-    hashmap          = malloc(sizeof(t_hashmap));
-    hashmap->entries = malloc(sizeof(t_hashmap_entry *) *slots);
+    hashmap          = malloc(sizeof(t_hashmap)); 
+    hashmap->entries = malloc(sizeof(t_hashmap_entry *) * slots);
     
     for (i = 0; i < slots; i++)
         hashmap->entries[i] = NULL;
@@ -35,22 +20,6 @@ t_hashmap *hashmap_create(int slots, float grow_factor, float load_factor) {
     hashmap->load_factor = load_factor;
     
     return hashmap;
-}
-
-/*
- * Return an entry to insert in the hashmap
- */
-t_hashmap_entry *hashmap_create_entry(char *key, void *value, type_var type) {
-    
-    t_hashmap_entry *entry;
-    entry = malloc(sizeof(t_hashmap_entry));
-    
-    entry->key      = key;
-    entry->value    = value;
-    entry->type     = type;
-    entry->next     = NULL;
-    
-    return entry;
 }
 
 /*
@@ -121,34 +90,10 @@ void hashmap_put(t_hashmap *hashmap, char *key, void *value, type_var type) {
             while (*entry)
                 entry = &((*entry)->next);
             
-            *entry = hashmap_create_entry(key, value, type);
+            *entry = hashmap_entry_create(key, value, type);
             hashmap->size++;
         }
     }
-}
-
-/*
- * Get a hashmap_entity by its key
- */
-t_hashmap_entry *hashmap_get_entry(t_hashmap *hashmap, char *key) {
-    
-    if (hashmap) {
-        int num_slot;
-        t_hashmap_entry **entry;
-        
-        num_slot    = get_hash_code(key) % hashmap->slots;
-        entry       = &(hashmap->entries[num_slot]);
-        
-        while (*entry) {
-            // Return the matching entry
-            if(strcmp((*entry)->key, key) == 0) {
-                return *entry;
-            }
-            entry = &((*entry)->next);
-        }
-    }
-
-    return NULL;
 }
 
 /*
@@ -172,6 +117,30 @@ void *hashmap_get(t_hashmap *hashmap, char *key) {
         }
     }
     
+    return NULL;
+}
+
+/*
+ * Get a hashmap_entity by its key
+ */
+t_hashmap_entry *hashmap_get_entry(t_hashmap *hashmap, char *key) {
+    
+    if (hashmap) {
+        int num_slot;
+        t_hashmap_entry **entry;
+        
+        num_slot    = get_hash_code(key) % hashmap->slots;
+        entry       = &(hashmap->entries[num_slot]);
+        
+        while (*entry) {
+            // Return the matching entry
+            if(strcmp((*entry)->key, key) == 0) {
+                return *entry;
+            }
+            entry = &((*entry)->next);
+        }
+    }
+
     return NULL;
 }
 
@@ -202,26 +171,6 @@ void hashmap_remove(t_hashmap *hashmap, char *key) {
 
             entry = &((*entry)->next);
         }
-    }
-}
-
-/**
- * Print a hashmap entry
- */
-void print_entry(t_hashmap_entry *entry) {
-    
-    switch (entry->type) {
-        case TYPE_STRING:
-            printf("%s ==> %s, ", entry->key, (char *) entry->value);
-            break;
-        case TYPE_INT:
-            printf("%s ==> %d, ", entry->key, *((int *) entry->value));
-            break;
-        case TYPE_DOUBLE:
-            printf("%s ==> %lf, ", entry->key, *((double *) entry->value));
-            break;
-        default:
-            printf("%s ==> unknown type, ", entry->key);
     }
 }
 

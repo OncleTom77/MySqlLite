@@ -5,7 +5,7 @@ EXEC=mysqllite
 
 all: $(EXEC)
 
-mysqllite: command.o hashMap.o sql.o main.o
+mysqllite: command.o hashmap_entry.o hashMap.o json.o sql.o utils.o main.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 %.o: %.c
