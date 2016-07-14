@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
             printf("Unknown action !\n");
     }
     
-    free(input);
+    command_line_free(&input);
     
     return EXIT_SUCCESS;
 }

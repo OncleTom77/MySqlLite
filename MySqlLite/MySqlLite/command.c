@@ -1,11 +1,15 @@
 #include "includes.h"
 
+/*
+ * Store the current option in the appropriate field of command_line struct if it is valid
+ */
 int get_option(command_line *command_line, char *name, char *value) {
     
     int i;
     char *actions[] = {"-find", "-insert", "-set", "-remove"};
     char *options[] = {"-where", "-projection", "-sort"};
     char *parsed_value = get_value(value, strlen(value));
+    t_hashmap *hashmap = NULL;
     
     if (parsed_value == NULL) {
         printf("Invalid value '%s'.\n", value);
@@ -20,54 +24,68 @@ int get_option(command_line *command_line, char *name, char *value) {
             return -1;
         }
         command_line->collection = parsed_value;
-
+        
         return 0;
     }
     
-    // Check if the option is an action
-    for (i = 0; i < 4; i++) {
-        if (strcmp(name, actions[i]) == 0) {
-            if (command_line->act != A_NONE) {
-                printf("There are 2 actions on the command line. Choose only one.\n");
-                return -1;
+    if ((hashmap = JSON_parse(parsed_value)) != NULL) {
+        // Check if the option is an action
+        for (i = 0; i < 4; i++) {
+            if (strcmp(name, actions[i]) == 0) {
+                if (command_line->act != A_NONE) {
+                    printf("There are 2 actions on the command line. Choose only one.\n");
+                    return -1;
+                }
+                else if (i == 0)
+                    command_line->act = A_FIND;
+                else if (i == 1)
+                    command_line->act = A_INSERT;
+                else if (i == 2)
+                    command_line->act = A_SET;
+                else
+                    command_line->act = A_REMOVE;
+                
+                command_line->action_value = hashmap;
+                
+                free(parsed_value);
+                return 0;
             }
-            else if (i == 0)
-                command_line->act = A_FIND;
-            else if (i == 1)
-                command_line->act = A_INSERT;
-            else if (i == 2)
-                command_line->act = A_SET;
-            else
-                command_line->act = A_REMOVE;
-
-            command_line->action_value = parsed_value;
-
-            return 0;
         }
+        
+        // Check if the option is an option for an action
+        for (i = 0; i < 3; i++) {
+            if (strcmp(name, options[i]) == 0) {
+                if (i == 0 && command_line->where_value == NULL) {
+                    command_line->where_value = hashmap;
+                } else if (i == 1 && command_line->projection_value == NULL) {
+                    // Create a chain list of t_hashmap_entry instead of t_hashmap to keep the order of the projections for printing
+                    t_hashmap_entry *hashmap_entry = JSON_parse_list(parsed_value);
+                    command_line->projection_value = hashmap_entry;
+                    free(hashmap);
+                } else if (i == 2 && command_line->sort_value == NULL) {
+                    command_line->sort_value = hashmap;
+                } else {
+                    printf("The '%s' option already exists on the command line.\n", options[i]);
+                    return -1;
+                }
+                free(parsed_value);
+                return 0;
+            }
+        }
+    } else {
+        printf("Syntax error for '%s' value\n", parsed_value);
+        return -1;
     }
     
-    // Check if the option is an option for an action
-    for (i = 0; i < 3; i++) {
-        if (strcmp(name, options[i]) == 0) {
-            if (i == 0 && command_line->where_value == NULL)
-                command_line->where_value = value;
-            else if (i == 1 && command_line->projection_value == NULL)
-                command_line->projection_value = value;
-            else if (i == 2 && command_line->sort_value == NULL)
-                command_line->sort_value = value;
-            else {
-                printf("The '%s' option already exists on the command line.\n", options[i]);
-                return -1;
-            }
-            return 0;
-        }
-    }
     
     printf("Unknown option '%s'.\n", name);
 
     return -1;
 }
 
+/*
+ * Parse the value of the current option to get the same value if it braces by "" or not
+ */
 char *get_value(char *value, unsigned long length) {
     
     char *parsed_value = NULL;
@@ -86,6 +104,9 @@ char *get_value(char *value, unsigned long length) {
     return parsed_value;
 }
 
+/*
+ * Analyse the arguments passed in command line
+ */
 command_line *analyse_arguments(int argc, char **args) {
     
     int i;
@@ -138,4 +159,27 @@ command_line *analyse_arguments(int argc, char **args) {
     }
     
     return input;
+}
+
+/*
+ * Free the command_line struct
+ */
+void command_line_free(command_line **input) {
+    
+    if((*input)->collection != NULL)
+        free((*input)->collection);
+    
+    if((*input)->action_value != NULL)
+        free((*input)->action_value);
+    
+    if((*input)->where_value != NULL)
+        free((*input)->where_value);
+    
+    if((*input)->projection_value != NULL)
+        free((*input)->projection_value);
+    
+    if((*input)->sort_value != NULL)
+        free((*input)->sort_value);
+    
+    free(*input);
 }

@@ -108,7 +108,7 @@ void print_type(t_hashmap_entry *entry) {
             printf("%d\t", *((int *) entry->value));
             break;
         case TYPE_DOUBLE:
-            printf("%lf\t", *((double *) entry->value));
+            printf("%.2lf\t", *((double *) entry->value));
             break;
         default:
             printf("unknown\t");
