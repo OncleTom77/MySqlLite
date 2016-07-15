@@ -175,7 +175,7 @@ void hashmap_remove(t_hashmap *hashmap, char *key) {
 }
 
 /*
- * Print the HashMap
+ * Print the hashmap (debug)
  */
 void hashmap_print(t_hashmap *hashmap) {
     
@@ -201,6 +201,31 @@ void hashmap_print(t_hashmap *hashmap) {
     }
     
     printf("-----------------------------------------------\n");
+}
+
+/*
+ * Compare 2 hashmap by one or more key(s) defined in sort list_chain.
+ * Return : -1 if the value of the key of the hashmap1 < hashmap2. Revert the result if the sort value is desc
+ *          +1 if the value of the key of the hashmap1 > hashmap2. Revert the result if the sort value is desc
+ *          0 if the value of the key of the hashmap1 == hashmap2
+ */
+int compare_hashmap(t_hashmap *hashmap1, t_hashmap *hashmap2, t_hashmap_entry *sort) {
+    
+    t_hashmap_entry *val1;
+    t_hashmap_entry *val2;
+    int result = 0;
+    
+    while (sort != NULL) {
+        val1 = hashmap_get_entry(hashmap1, sort->key);
+        val2 = hashmap_get_entry(hashmap2, sort->key);
+        
+        if ((result = compare_hashmap_entry(val1, val2)) != 0)
+            return (*((int *)sort->value) < 0) ? -result : result;
+        
+        sort = sort->next;
+    }
+    
+    return 0;
 }
 
 /*

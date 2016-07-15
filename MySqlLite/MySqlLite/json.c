@@ -120,7 +120,7 @@ char *JSON_stringify(t_hashmap *hashmap) {
                 element = get_string_from_hashmap_entry(temp);
                 
                 if (!string) {
-                    string = realloc(string, sizeof(char) * (strlen(element) + 2));
+                    string = calloc(strlen(element) + 2, sizeof(char));
                     string[0] = '{';
                 } else {
                     string = realloc(string, sizeof(char) * (strlen(string) + strlen(element) + 1));
@@ -133,6 +133,5 @@ char *JSON_stringify(t_hashmap *hashmap) {
         }
     }
     strcat(string, "}");
-    
     return string;
 }

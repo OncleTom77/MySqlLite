@@ -7,6 +7,7 @@
 
 #include "hashmap_entry.h"
 #include "hashMap.h"
+#include "list_chain_hashmap.h"
 #include "command.h"
 #include "json.h"
 #include "sql.h"

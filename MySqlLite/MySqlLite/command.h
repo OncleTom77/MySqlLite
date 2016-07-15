@@ -18,7 +18,7 @@ typedef struct command_line {
     t_hashmap *action_value;
     t_hashmap *where_value;
     t_hashmap_entry *projection_value;
-    t_hashmap *sort_value;
+    t_hashmap_entry *sort_value;
     
 } command_line;
 

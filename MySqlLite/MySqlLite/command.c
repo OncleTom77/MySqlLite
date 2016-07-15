@@ -63,7 +63,10 @@ int get_option(command_line *command_line, char *name, char *value) {
                     command_line->projection_value = hashmap_entry;
                     free(hashmap);
                 } else if (i == 2 && command_line->sort_value == NULL) {
-                    command_line->sort_value = hashmap;
+                    // Create a chain list of t_hashmap_entry instead of t_hashmap to keep the order of sort for printing
+                    t_hashmap_entry *hashmap_entry = JSON_parse_list(parsed_value);
+                    command_line->sort_value = hashmap_entry;
+                    free(hashmap);
                 } else {
                     printf("The '%s' option already exists on the command line.\n", options[i]);
                     return -1;
@@ -170,16 +173,16 @@ void command_line_free(command_line **input) {
         free((*input)->collection);
     
     if((*input)->action_value != NULL)
-        free((*input)->action_value);
+        hashmap_free(&(*input)->action_value);
     
     if((*input)->where_value != NULL)
-        free((*input)->where_value);
+        hashmap_free(&(*input)->where_value);
     
     if((*input)->projection_value != NULL)
-        free((*input)->projection_value);
+        hashmap_entry_free((*input)->projection_value);
     
     if((*input)->sort_value != NULL)
-        free((*input)->sort_value);
+        hashmap_entry_free((*input)->sort_value);
     
     free(*input);
 }

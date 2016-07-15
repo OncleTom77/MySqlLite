@@ -78,6 +78,9 @@ void print_entity_projections(t_hashmap *entity, t_hashmap_entry *projections) {
     int i;
     int is_print = -1;
     
+    if(!entity)
+        return;
+    
     // If there isn't projections, print all members
     if (projections == NULL) {
         for (i = 0; i < entity->slots; i++) {
@@ -113,6 +116,7 @@ void print_entity_projections(t_hashmap *entity, t_hashmap_entry *projections) {
 void sql_find(command_line *input) {
     
     t_hashmap *entity               = NULL;
+    list_chain_hashmap *entities    = NULL;
     FILE *file                      = NULL;
     char *path                      = NULL;
     char *pos                       = NULL;
@@ -135,11 +139,10 @@ void sql_find(command_line *input) {
         content = malloc(sizeof(char) * file_length);
 
         if (fread(content, sizeof(char), file_length, file) == file_length) {
-            
             // Get each entity in the file
             while (*content != '\0' && (pos = strchr(content, '}')) != NULL && *(pos-1) != '\\') {
                 pos++;
-                length  = pos - content;
+                length = pos - content;
                 
                 // Get the JSON string of the current object
                 JSON_string = malloc(sizeof(char) * (length + 1));
@@ -150,16 +153,27 @@ void sql_find(command_line *input) {
                 entity = JSON_parse(JSON_string);
                 
                 // Print the entity if it respects the constraints of the -find command
-                if (is_matching(entity, input->action_value) == 0)
-                    print_entity_projections(entity, input->projection_value);
+                if (is_matching(entity, input->action_value) == 0) {
+                    // If sort_value is not NULL, store each entity in list_chain sorted by the field of the sort_value
+                    if (input->sort_value != NULL) {
+                        list_chain_hashmap_insert(&entities, entity, input->sort_value);
+                    } else {
+                        print_entity_projections(entity, input->projection_value);
+                        if (entity != NULL)
+                            hashmap_free(&entity);
+                    }
+                }
                 
                 free(JSON_string);
                 content = pos;
             }
             content -= file_length;
             
-            if (entity != NULL)
-                hashmap_free(&entity);
+            // If sort_value is not NULL, print the entities sorted list
+            if(input->sort_value != NULL) {
+                list_chain_hashmap_print_projections(entities, input->projection_value);
+                list_chain_hashmap_free(&entities);
+            }
         }
         else
             printf("An error occurred while reading the file\n");
@@ -202,6 +216,8 @@ void sql_insert(command_line *input) {
 
         if (fwrite(content, sizeof(char), length, file) != length)
             printf("An error occurred during the writing of the data\n");
+        else
+            printf("1 object has been inserted successfully !\n");
         
         free(content);
     }
