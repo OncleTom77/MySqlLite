@@ -20,12 +20,12 @@ int is_matching(t_hashmap *entity, t_hashmap *constraints) {
         temp = constraints->entries[i];
         while (temp != NULL) {
             if ((entry = hashmap_get_entry(entity, temp->key)) == NULL) {
-                printf("The '%s' key does not exist in the selected collection.\n", temp->key);
+                //printf("The '%s' key does not exist in the selected collection.\n", temp->key);
                 return -1;
             }
 
             if (temp->type != entry->type) {
-                printf("Wrong type of value for the '%s' key : %d != %d\n", temp->key, temp->type, entry->type);
+                //printf("Wrong type of value for the '%s' key : %d != %d\n", temp->key, temp->type, entry->type);
                 return -1;
             }
 
@@ -76,6 +76,10 @@ void print_entity_projections(t_hashmap *entity, t_hashmap_entry *projections) {
     
     t_hashmap_entry *entry;
     int i;
+    int is_print = -1;
+    
+    if(!entity)
+        return;
     
     // If there isn't projections, print all members
     if (projections == NULL) {
@@ -84,6 +88,7 @@ void print_entity_projections(t_hashmap *entity, t_hashmap_entry *projections) {
                 entry = entity->entries[i];
                 
                 while (entry != NULL) {
+                    is_print = 0;
                     print_type(entry);
                     entry = entry->next;
                 }
@@ -93,13 +98,16 @@ void print_entity_projections(t_hashmap *entity, t_hashmap_entry *projections) {
     
     // For each projection, print the value of entity fields
     while (projections != NULL) {
-        if ((entry = hashmap_get_entry(entity, projections->key)) != NULL)
+        if ((entry = hashmap_get_entry(entity, projections->key)) != NULL) {
+            is_print = 0;
             print_type(entry);
+        }
         
         projections = projections->next;
     }
     
-    printf("\n");
+    if(is_print == 0)
+        printf("\n");
 }
 
 /*
@@ -108,8 +116,7 @@ void print_entity_projections(t_hashmap *entity, t_hashmap_entry *projections) {
 void sql_find(command_line *input) {
     
     t_hashmap *entity               = NULL;
-    t_hashmap *constraints          = NULL;
-    t_hashmap_entry *projections    = NULL;
+    list_chain_hashmap *entities    = NULL;
     FILE *file                      = NULL;
     char *path                      = NULL;
     char *pos                       = NULL;
@@ -132,14 +139,10 @@ void sql_find(command_line *input) {
         content = malloc(sizeof(char) * file_length);
 
         if (fread(content, sizeof(char), file_length, file) == file_length) {
-            constraints = JSON_parse(input->action_value);
-            // Create a chain list of t_hashmap_entry instead of t_hashmap to keep the order of the projections for printing
-            projections = JSON_parse_list(input->projection_value);
-            
             // Get each entity in the file
             while (*content != '\0' && (pos = strchr(content, '}')) != NULL && *(pos-1) != '\\') {
                 pos++;
-                length  = pos - content;
+                length = pos - content;
                 
                 // Get the JSON string of the current object
                 JSON_string = malloc(sizeof(char) * (length + 1));
@@ -150,23 +153,27 @@ void sql_find(command_line *input) {
                 entity = JSON_parse(JSON_string);
                 
                 // Print the entity if it respects the constraints of the -find command
-                if (is_matching(entity, constraints) == 0)
-                    print_entity_projections(entity, projections);
+                if (is_matching(entity, input->action_value) == 0) {
+                    // If sort_value is not NULL, store each entity in list_chain sorted by the field of the sort_value
+                    if (input->sort_value != NULL) {
+                        list_chain_hashmap_insert(&entities, entity, input->sort_value);
+                    } else {
+                        print_entity_projections(entity, input->projection_value);
+                        if (entity != NULL)
+                            hashmap_free(&entity);
+                    }
+                }
                 
                 free(JSON_string);
                 content = pos;
             }
             content -= file_length;
             
-            if (entity != NULL)
-                hashmap_free(&entity);
-
-            if (constraints != NULL)
-                hashmap_free(&constraints);
-
-            if (projections != NULL)
-                hashmap_entry_free(projections);
-
+            // If sort_value is not NULL, print the entities sorted list
+            if(input->sort_value != NULL) {
+                list_chain_hashmap_print_projections(entities, input->projection_value);
+                list_chain_hashmap_free(&entities);
+            }
         }
         else
             printf("An error occurred while reading the file\n");
@@ -174,7 +181,7 @@ void sql_find(command_line *input) {
         free(content);
     } else {
         printf("The '%s' collection does not exist.\n", input->collection);
-        printf("The '%s' path have not could be resolved\n", path);
+        //printf("The '%s' path have not could be resolved\n", path);
     }
     
     free(path);
@@ -186,9 +193,9 @@ void sql_find(command_line *input) {
  */
 void sql_insert(command_line *input) {
     
-    t_hashmap *entity   = NULL;
     FILE *file          = NULL;
     char *path          = NULL;
+    char *content       = NULL;
     long length;
     
     path = malloc(sizeof(char) * (strlen(input->collection) + strlen(BASE_NO_SQL) + 6));
@@ -203,18 +210,19 @@ void sql_insert(command_line *input) {
 
     fseek(file, 0, SEEK_END);
     
-    entity = JSON_parse(input->action_value);
-    
-    if (entity != NULL) {
-        length = strlen(input->action_value);
+    if (input->action_value != NULL) {
+        content = JSON_stringify(input->action_value);
+        length = strlen(content);
 
-        if (fwrite(input->action_value, sizeof(char), length, file) != length)
-            printf("An error occurred during the writing of the data.\n");
+        if (fwrite(content, sizeof(char), length, file) != length)
+            printf("An error occurred during the writing of the data\n");
+        else
+            printf("1 object has been inserted successfully !\n");
         
-        free(entity);
+        free(content);
     }
     else
-        printf("Syntax error in the data to insert.\n");
+        printf("Syntax error in the data to insert\n");
     
     free(path);
     fclose(file);
@@ -226,8 +234,6 @@ void sql_insert(command_line *input) {
 void sql_set(command_line *input) {
     
     t_hashmap *entity       = NULL;
-    t_hashmap *values       = NULL;
-    t_hashmap *constraints  = NULL;
     FILE *file              = NULL;
     char *path              = NULL;
     char *pos               = NULL;
@@ -238,12 +244,7 @@ void sql_set(command_line *input) {
     long cur_position       = 0;
     int nb_entity_updated   = 0;
     
-    if ((values = JSON_parse(input->action_value)) == NULL) {
-        printf("The SET command is empty or invalid\n");
-        return;
-    }
-    
-    if ((constraints = JSON_parse(input->where_value)) == NULL) {
+    if (input->where_value == NULL) {
         printf("The WHERE clause is missing or incorrect\n");
         return;
     }
@@ -279,8 +280,8 @@ void sql_set(command_line *input) {
                 entity = JSON_parse(JSON_string);
                 
                 // Update the entity's values in the file if it respects the constraints of the -where clause
-                if (is_matching(entity, constraints) == 0) {
-                    update_entity(entity, values);
+                if (is_matching(entity, input->where_value) == 0) {
+                    update_entity(entity, input->action_value);
                     char *str = JSON_stringify(entity);
                     
                     content = replace_substring(content, cur_position, length, str);
@@ -312,11 +313,8 @@ void sql_set(command_line *input) {
         fclose(file);
     } else {
         printf("The '%s' collection does not exist.\n", input->collection);
-        printf("The '%s' path have not could be resolved\n", path);
+        //printf("The '%s' path have not could be resolved\n", path);
     }
-    
-    hashmap_free(&values);
-    hashmap_free(&constraints);
     
     free(path);
 }
@@ -327,7 +325,6 @@ void sql_set(command_line *input) {
 void sql_remove(command_line *input) {
     
     t_hashmap *entity       = NULL;
-    t_hashmap *constraints  = NULL;
     FILE *file              = NULL;
     char *path              = NULL;
     char *pos               = NULL;
@@ -353,8 +350,6 @@ void sql_remove(command_line *input) {
         content = malloc(sizeof(char) * (file_length + 1));
         
         if (fread(content, sizeof(char), file_length, file) == file_length) {
-            constraints = JSON_parse(input->action_value);
-            
             // Get each entity of the file
             while (content[cur_position] != '\0' && (pos = strchr(&content[cur_position], '}')) != NULL && *(pos-1) != '\\') {
                 pos += 1;
@@ -369,7 +364,7 @@ void sql_remove(command_line *input) {
                 entity = JSON_parse(JSON_string);
                 
                 // Delete the entity in the file if it respects the constraints of the -remove command
-                if (is_matching(entity, constraints) == 0) {
+                if (is_matching(entity, input->action_value) == 0) {
                     content = revert_substr(content, cur_position, length);
                     nb_entity_deleted++;
                 }
@@ -389,9 +384,6 @@ void sql_remove(command_line *input) {
             
             if (entity != NULL)
                 hashmap_free(&entity);
-
-            if (constraints != NULL)
-                hashmap_free(&constraints);
         }
         else
             printf("An error occurred while reading the file\n");
@@ -399,7 +391,7 @@ void sql_remove(command_line *input) {
         free(content);
     } else {
         printf("The '%s' collection does not exist.\n", input->collection);
-        printf("The '%s' path have not could be resolved\n", path);
+        //printf("The '%s' path have not could be resolved\n", path);
     }
     
     free(path);

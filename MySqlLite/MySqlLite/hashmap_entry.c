@@ -108,9 +108,49 @@ void print_type(t_hashmap_entry *entry) {
             printf("%d\t", *((int *) entry->value));
             break;
         case TYPE_DOUBLE:
-            printf("%lf\t", *((double *) entry->value));
+            printf("%.2lf\t", *((double *) entry->value));
             break;
         default:
             printf("unknown\t");
     }
+}
+
+/*
+ * Compare 2 values accordingly to their type.
+ * Return : a negatif number if value1 < value2
+ *          a positif number if value1 > value2
+ *          0 if value1 == value2
+ */
+int compare_hashmap_entry(t_hashmap_entry *entry1, t_hashmap_entry *entry2) {
+    
+    if (entry1 && entry2) {
+        if(entry1->type == entry2->type) {
+            switch (entry1->type) {
+                case TYPE_STRING:
+                    return strcmp((char *)entry1->value, (char *)entry2->value);
+                case TYPE_DOUBLE: {
+                    double val1 = *((double *)entry1->value);
+                    double val2 = *((double *)entry2->value);
+                    if (val1 < val2)
+                        return -1;
+                    else if(val1 > val2)
+                        return 1;
+                    break;
+                }
+                case TYPE_INT: {
+                    int val1 = *((int *)entry1->value);
+                    int val2 = *((int *)entry2->value);
+                    if (val1 < val2)
+                        return -1;
+                    else if(val1 > val2)
+                        return 1;
+                }
+            }
+        }
+    } else if (entry1)
+        return 1;
+    else if(entry2)
+        return -1;
+    
+    return 0;
 }

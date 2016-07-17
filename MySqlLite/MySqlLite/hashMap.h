@@ -27,4 +27,6 @@ void hashmap_free(t_hashmap **);
 
 void hashmap_print(t_hashmap *);
 
+int compare_hashmap(t_hashmap *, t_hashmap *, t_hashmap_entry *);
+
 #endif /* hashMap_h */

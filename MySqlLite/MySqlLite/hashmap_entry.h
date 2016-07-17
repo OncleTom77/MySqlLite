@@ -28,4 +28,6 @@ char *get_string_from_hashmap_entry(t_hashmap_entry *);
 
 void print_type(t_hashmap_entry *);
 
+int compare_hashmap_entry(t_hashmap_entry *, t_hashmap_entry *);
+
 #endif /* hashmap_entry_h */
