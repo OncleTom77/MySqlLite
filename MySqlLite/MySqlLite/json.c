@@ -49,9 +49,8 @@ t_hashmap *JSON_parse(char *string) {
     char *element;
     char *copy;
     
-    if (string == NULL || strlen(string) < 3) {
+    if (string == NULL || strlen(string) < 3)
         return NULL;
-    }
     
     if(string[0] == '{' && string[strlen(string) - 1] == '}') {
         hashmap = hashmap_create(10, 2, 0.7);
